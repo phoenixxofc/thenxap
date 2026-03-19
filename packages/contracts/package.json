@@ -2,6 +2,7 @@
   "name": "@arena-dash/contracts",
   "version": "1.0.0",
   "scripts": {
+    "build": "hardhat compile",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "deploy:polygon": "hardhat run scripts/deploy.ts --network polygon"
