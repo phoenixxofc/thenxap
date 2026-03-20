@@ -34,6 +34,11 @@ export enum HeroClassType {
   SUPPORT = 'SUPPORT'
 }
 
+export enum ObstacleType {
+    PILLAR = 'PILLAR',
+    HAZARD = 'HAZARD'
+}
+
 // Seeded PRNG
 class PRNG {
   private seed: number;
@@ -63,6 +68,7 @@ export abstract class BaseHero {
   public moveSpeed: number = 0.002;
   public lastDashFrame: number = -100;
   public isDashing: boolean = false;
+  public isInvisible: boolean = false;
   public type: HeroClassType;
 
   constructor(x: number, y: number, type: HeroClassType) {
@@ -86,12 +92,11 @@ export class TankHero extends BaseHero {
   applyPassives() {
     this.maxHealth = 150;
     this.health = 150;
-    // 15% reduction logic handled in Engine
   }
   onDash(input: PlayerInput, frame: number) {
     const dashVector = Matter.Vector.sub(input.mousePos, this.body.position);
     const dashDirection = Matter.Vector.normalise(dashVector);
-    const dashImpulse = Matter.Vector.mult(dashDirection, 0.08); // Heavier impulse
+    const dashImpulse = Matter.Vector.mult(dashDirection, 0.08);
     this.body.frictionAir = 0;
     Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
   }
@@ -112,31 +117,35 @@ export class FighterHero extends BaseHero {
 }
 
 export class AssassinHero extends BaseHero {
+  private invisibilityEndFrame: number = -1;
   constructor(x: number, y: number) { super(x, y, HeroClassType.ASSASSIN); }
   applyPassives() {
-    this.moveSpeed = 0.0024; // +20%
+    this.moveSpeed = 0.0024;
   }
   onDash(input: PlayerInput, frame: number) {
     const dashVector = Matter.Vector.sub(input.mousePos, this.body.position);
     const dashDirection = Matter.Vector.normalise(dashVector);
-    // Instant displacement placeholder for now
-    const dashImpulse = Matter.Vector.mult(dashDirection, 0.07);
+    // ShadowStep: Fast movement
+    const dashImpulse = Matter.Vector.mult(dashDirection, 0.1);
     this.body.frictionAir = 0;
     Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+    this.invisibilityEndFrame = frame + this.dashDuration + 30; // 0.5s post-dash
   }
-  update(frame: number) {}
+  update(frame: number) {
+      this.isInvisible = frame < this.invisibilityEndFrame;
+  }
 }
 
 export class MarksmanHero extends BaseHero {
   constructor(x: number, y: number) { super(x, y, HeroClassType.MARKSMAN); }
   applyPassives() {}
   onDash(input: PlayerInput, frame: number) {
-    // Disengage: backwards dash
     const dashVector = Matter.Vector.sub(this.body.position, input.mousePos);
     const dashDirection = Matter.Vector.normalise(dashVector);
     const dashImpulse = Matter.Vector.mult(dashDirection, 0.05);
     this.body.frictionAir = 0;
     Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+    // Projectile logic would be triggered here in a real scenario
   }
   update(frame: number) {}
 }
@@ -145,16 +154,17 @@ export class MageHero extends BaseHero {
   constructor(x: number, y: number) { super(x, y, HeroClassType.MAGE); }
   applyPassives() {}
   onDash(input: PlayerInput, frame: number) {
+    // ArcaneBlink: Displacement
     const dashVector = Matter.Vector.sub(input.mousePos, this.body.position);
     const dashDirection = Matter.Vector.normalise(dashVector);
-    const dashImpulse = Matter.Vector.mult(dashDirection, 0.05);
-    this.body.frictionAir = 0;
-    Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+    Matter.Body.setPosition(this.body, Matter.Vector.add(this.body.position, Matter.Vector.mult(dashDirection, 150)));
+    // FrostNova logic would be here
   }
   update(frame: number) {}
 }
 
 export class SupportHero extends BaseHero {
+  private invulnerabilityEndFrame: number = -1;
   constructor(x: number, y: number) { super(x, y, HeroClassType.SUPPORT); }
   applyPassives() {}
   onDash(input: PlayerInput, frame: number) {
@@ -163,11 +173,15 @@ export class SupportHero extends BaseHero {
     const dashImpulse = Matter.Vector.mult(dashDirection, 0.05);
     this.body.frictionAir = 0;
     Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+    this.invulnerabilityEndFrame = frame + 120; // 2.0s
   }
   update(frame: number) {
-    if (frame % 120 === 0) { // Every 2 seconds
+    if (frame % 120 === 0) {
       this.health = Math.min(this.maxHealth, this.health + this.maxHealth * 0.03);
     }
+  }
+  public isInvulnerable(frame: number): boolean {
+      return frame < this.invulnerabilityEndFrame;
   }
 }
 
@@ -229,12 +243,17 @@ export class GameEngine {
   }
 
   private generateObstacles() {
-    // Level-based density scaling
     const density = this.level >= 10 ? 8 : (this.level >= 4 ? 4 : 0);
     for (let i = 0; i < density; i++) {
       const x = 100 + this.prng.next() * 600;
       const y = 100 + this.prng.next() * 400;
-      const obstacle = Matter.Bodies.rectangle(x, y, 40, 40, { isStatic: true, label: 'obstacle' });
+      const type = this.prng.next() > 0.7 ? ObstacleType.HAZARD : ObstacleType.PILLAR;
+      const obstacle = Matter.Bodies.rectangle(x, y, 40, 40, {
+          isStatic: true,
+          label: 'obstacle',
+          isSensor: type === ObstacleType.HAZARD
+      });
+      (obstacle as any).obstacleType = type;
       this.obstacles.push(obstacle);
       Matter.World.add(this.world, obstacle);
     }
@@ -251,6 +270,7 @@ export class GameEngine {
     this.hero.update(this.frame);
     this.updateEnemies();
     this.spawnEnemies();
+    this.handleHazards();
 
     Matter.Engine.update(this.engine, 1000 / 60);
 
@@ -265,11 +285,13 @@ export class GameEngine {
   private handleMovement(input: PlayerInput) {
     if (this.hero.isDashing) return;
 
+    // Use a fixed multiplier for "Fixed-Point" style math to ensure determinism across architectures
+    const FP_STEP = 1000;
     const force = { x: 0, y: 0 };
-    if (input.up) force.y -= this.hero.moveSpeed;
-    if (input.down) force.y += this.hero.moveSpeed;
-    if (input.left) force.x -= this.hero.moveSpeed;
-    if (input.right) force.x += this.hero.moveSpeed;
+    if (input.up) force.y -= Math.floor(this.hero.moveSpeed * FP_STEP) / FP_STEP;
+    if (input.down) force.y += Math.floor(this.hero.moveSpeed * FP_STEP) / FP_STEP;
+    if (input.left) force.x -= Math.floor(this.hero.moveSpeed * FP_STEP) / FP_STEP;
+    if (input.right) force.x += Math.floor(this.hero.moveSpeed * FP_STEP) / FP_STEP;
 
     Matter.Body.applyForce(this.hero.body, this.hero.body.position, force);
   }
@@ -290,7 +312,6 @@ export class GameEngine {
   }
 
   private spawnEnemies() {
-    // Director AI logic
     const healthPercent = this.hero.health / this.hero.maxHealth;
     let spawnMultiplier = 1;
     if (healthPercent > 0.8) spawnMultiplier = 1.5;
@@ -362,10 +383,23 @@ export class GameEngine {
 
     if (labels.includes('player') && labels.includes('enemy')) {
       const enemy = bodyA.label === 'enemy' ? bodyA : bodyB;
+
+      if (this.hero.type === HeroClassType.SUPPORT && (this.hero as SupportHero).isInvulnerable(this.frame)) {
+          return;
+      }
+
       if (this.hero.isDashing) {
         let damageMultiplier = 1;
-        if (this.hero.type === HeroClassType.TANK) damageMultiplier = 2.0;
-        // Assassin Critical placeholder
+        if (this.hero.type === HeroClassType.TANK) {
+            damageMultiplier = 2.0;
+            // Knockback
+            const force = Matter.Vector.mult(Matter.Vector.normalise(Matter.Vector.sub(enemy.position, this.hero.body.position)), 0.05);
+            Matter.Body.applyForce(enemy, enemy.position, force);
+        }
+        if (this.hero.type === HeroClassType.ASSASSIN) {
+            // Check back hitbox logic placeholder
+            damageMultiplier = 4.0;
+        }
         this.killEnemy(enemy, damageMultiplier);
       } else {
         let damage = 10;
@@ -375,6 +409,20 @@ export class GameEngine {
     }
   }
 
+  private handleHazards() {
+      if (this.hero.type === HeroClassType.SUPPORT && (this.hero as SupportHero).isInvulnerable(this.frame)) {
+          return;
+      }
+      this.obstacles.forEach(obstacle => {
+          if ((obstacle as any).obstacleType === ObstacleType.HAZARD) {
+              const distance = Matter.Vector.magnitude(Matter.Vector.sub(this.hero.body.position, obstacle.position));
+              if (distance < 40) { // Overlap check
+                  this.hero.health -= 0.1; // DoT
+              }
+          }
+      });
+  }
+
   private killEnemy(enemy: Matter.Body, multiplier: number = 1) {
     Matter.World.remove(this.world, enemy);
     this.enemies = this.enemies.filter(e => e !== enemy);
@@ -382,7 +430,7 @@ export class GameEngine {
     this.kills++;
 
     if (this.hero.type === HeroClassType.FIGHTER) {
-      this.hero.health = Math.min(this.hero.maxHealth, this.hero.health + this.hero.maxHealth * 0.01); // 1% heal per kill (vampiric placeholder)
+      this.hero.health = Math.min(this.hero.maxHealth, this.hero.health + this.hero.maxHealth * 0.1); // 10% heal
     }
   }
 
@@ -396,7 +444,9 @@ export class GameEngine {
     if (this.kills >= threshold) {
       this.level++;
       this.kills = 0;
-      // Trigger level up UI event from client
+      this.obstacles.forEach(o => Matter.World.remove(this.world, o));
+      this.obstacles = [];
+      this.generateObstacles();
     }
   }
 

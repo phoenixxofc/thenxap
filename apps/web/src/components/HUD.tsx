@@ -19,7 +19,7 @@ export const HUD: React.FC = () => {
   const levelThreshold = 15 + level * 5;
 
   return (
-    <div className="absolute inset-0 pointer-events-none p-6 font-mono">
+    <div className="absolute inset-0 pointer-events-none p-6 font-mono z-10">
       {/* Top Left: Score & Class */}
       <div className="absolute top-6 left-6">
         <div className="text-[#8E8E93] text-xs uppercase tracking-widest mb-1">{selectedClass} UNIT ACTIVE</div>

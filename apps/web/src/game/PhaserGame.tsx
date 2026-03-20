@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { HeroClassType } from '@arena-dash/engine';
 
