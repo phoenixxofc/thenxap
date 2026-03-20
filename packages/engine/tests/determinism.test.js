@@ -16,7 +16,7 @@ function runSim() {
   }
   return {
     score: engine.getScore(),
-    pos: { x: engine.player.position.x, y: engine.player.position.y }
+    pos: { x: engine.hero.body.position.x, y: engine.hero.body.position.y }
   };
 }
 

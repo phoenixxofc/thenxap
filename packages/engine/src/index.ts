@@ -4,6 +4,7 @@ export interface GameConfig {
   seed: string;
   isServer: boolean;
   baseDifficulty?: number;
+  heroClass?: HeroClassType;
 }
 
 export interface PlayerInput {
@@ -22,6 +23,15 @@ export enum EnemyType {
   SEEKER = 'SEEKER',
   SNIPER = 'SNIPER',
   PULSAR = 'PULSAR'
+}
+
+export enum HeroClassType {
+  TANK = 'TANK',
+  FIGHTER = 'FIGHTER',
+  ASSASSIN = 'ASSASSIN',
+  MARKSMAN = 'MARKSMAN',
+  MAGE = 'MAGE',
+  SUPPORT = 'SUPPORT'
 }
 
 // Seeded PRNG
@@ -44,24 +54,139 @@ class PRNG {
   }
 }
 
+export abstract class BaseHero {
+  public body: Matter.Body;
+  public health: number = 100;
+  public maxHealth: number = 100;
+  public dashCooldown: number = 60;
+  public dashDuration: number = 24;
+  public moveSpeed: number = 0.002;
+  public lastDashFrame: number = -100;
+  public isDashing: boolean = false;
+  public type: HeroClassType;
+
+  constructor(x: number, y: number, type: HeroClassType) {
+    this.type = type;
+    this.body = Matter.Bodies.circle(x, y, 20, {
+      label: 'player',
+      frictionAir: 0.1,
+      restitution: 0.2,
+      inertia: Infinity
+    });
+    this.applyPassives();
+  }
+
+  abstract applyPassives(): void;
+  abstract onDash(input: PlayerInput, frame: number): void;
+  abstract update(frame: number): void;
+}
+
+export class TankHero extends BaseHero {
+  constructor(x: number, y: number) { super(x, y, HeroClassType.TANK); }
+  applyPassives() {
+    this.maxHealth = 150;
+    this.health = 150;
+    // 15% reduction logic handled in Engine
+  }
+  onDash(input: PlayerInput, frame: number) {
+    const dashVector = Matter.Vector.sub(input.mousePos, this.body.position);
+    const dashDirection = Matter.Vector.normalise(dashVector);
+    const dashImpulse = Matter.Vector.mult(dashDirection, 0.08); // Heavier impulse
+    this.body.frictionAir = 0;
+    Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+  }
+  update(frame: number) {}
+}
+
+export class FighterHero extends BaseHero {
+  constructor(x: number, y: number) { super(x, y, HeroClassType.FIGHTER); }
+  applyPassives() {}
+  onDash(input: PlayerInput, frame: number) {
+    const dashVector = Matter.Vector.sub(input.mousePos, this.body.position);
+    const dashDirection = Matter.Vector.normalise(dashVector);
+    const dashImpulse = Matter.Vector.mult(dashDirection, 0.05);
+    this.body.frictionAir = 0;
+    Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+  }
+  update(frame: number) {}
+}
+
+export class AssassinHero extends BaseHero {
+  constructor(x: number, y: number) { super(x, y, HeroClassType.ASSASSIN); }
+  applyPassives() {
+    this.moveSpeed = 0.0024; // +20%
+  }
+  onDash(input: PlayerInput, frame: number) {
+    const dashVector = Matter.Vector.sub(input.mousePos, this.body.position);
+    const dashDirection = Matter.Vector.normalise(dashVector);
+    // Instant displacement placeholder for now
+    const dashImpulse = Matter.Vector.mult(dashDirection, 0.07);
+    this.body.frictionAir = 0;
+    Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+  }
+  update(frame: number) {}
+}
+
+export class MarksmanHero extends BaseHero {
+  constructor(x: number, y: number) { super(x, y, HeroClassType.MARKSMAN); }
+  applyPassives() {}
+  onDash(input: PlayerInput, frame: number) {
+    // Disengage: backwards dash
+    const dashVector = Matter.Vector.sub(this.body.position, input.mousePos);
+    const dashDirection = Matter.Vector.normalise(dashVector);
+    const dashImpulse = Matter.Vector.mult(dashDirection, 0.05);
+    this.body.frictionAir = 0;
+    Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+  }
+  update(frame: number) {}
+}
+
+export class MageHero extends BaseHero {
+  constructor(x: number, y: number) { super(x, y, HeroClassType.MAGE); }
+  applyPassives() {}
+  onDash(input: PlayerInput, frame: number) {
+    const dashVector = Matter.Vector.sub(input.mousePos, this.body.position);
+    const dashDirection = Matter.Vector.normalise(dashVector);
+    const dashImpulse = Matter.Vector.mult(dashDirection, 0.05);
+    this.body.frictionAir = 0;
+    Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+  }
+  update(frame: number) {}
+}
+
+export class SupportHero extends BaseHero {
+  constructor(x: number, y: number) { super(x, y, HeroClassType.SUPPORT); }
+  applyPassives() {}
+  onDash(input: PlayerInput, frame: number) {
+    const dashVector = Matter.Vector.sub(input.mousePos, this.body.position);
+    const dashDirection = Matter.Vector.normalise(dashVector);
+    const dashImpulse = Matter.Vector.mult(dashDirection, 0.05);
+    this.body.frictionAir = 0;
+    Matter.Body.applyForce(this.body, this.body.position, dashImpulse);
+  }
+  update(frame: number) {
+    if (frame % 120 === 0) { // Every 2 seconds
+      this.health = Math.min(this.maxHealth, this.health + this.maxHealth * 0.03);
+    }
+  }
+}
+
 export class GameEngine {
   public world: Matter.World;
   public engine: Matter.Engine;
-  public player: Matter.Body;
+  public hero: BaseHero;
   public enemies: Matter.Body[] = [];
+  public obstacles: Matter.Body[] = [];
   public frame: number = 0;
   public score: number = 0;
+  public kills: number = 0;
+  public level: number = 1;
   public isGameOver: boolean = false;
-  public health: number = 100;
   public omega: number = 1;
 
   private config: GameConfig;
   private prng: PRNG;
   private inputLog: PlayerInput[] = [];
-  private lastDashFrame: number = -100;
-  private dashCooldown: number = 60;
-  private dashDuration: number = 24;
-  private isDashing: boolean = false;
 
   constructor(config: GameConfig) {
     this.config = config;
@@ -72,13 +197,16 @@ export class GameEngine {
     });
     this.world = this.engine.world;
 
-    this.player = Matter.Bodies.circle(400, 300, 20, {
-      label: 'player',
-      frictionAir: 0.1,
-      restitution: 0.2,
-      inertia: Infinity
-    });
-    Matter.World.add(this.world, this.player);
+    const heroClass = config.heroClass || HeroClassType.FIGHTER;
+    switch (heroClass) {
+      case HeroClassType.TANK: this.hero = new TankHero(400, 300); break;
+      case HeroClassType.ASSASSIN: this.hero = new AssassinHero(400, 300); break;
+      case HeroClassType.MARKSMAN: this.hero = new MarksmanHero(400, 300); break;
+      case HeroClassType.MAGE: this.hero = new MageHero(400, 300); break;
+      case HeroClassType.SUPPORT: this.hero = new SupportHero(400, 300); break;
+      default: this.hero = new FighterHero(400, 300); break;
+    }
+    Matter.World.add(this.world, this.hero.body);
 
     const thickness = 100;
     const width = 800;
@@ -96,6 +224,20 @@ export class GameEngine {
         this.handleCollision(pair.bodyA, pair.bodyB);
       });
     });
+
+    this.generateObstacles();
+  }
+
+  private generateObstacles() {
+    // Level-based density scaling
+    const density = this.level >= 10 ? 8 : (this.level >= 4 ? 4 : 0);
+    for (let i = 0; i < density; i++) {
+      const x = 100 + this.prng.next() * 600;
+      const y = 100 + this.prng.next() * 400;
+      const obstacle = Matter.Bodies.rectangle(x, y, 40, 40, { isStatic: true, label: 'obstacle' });
+      this.obstacles.push(obstacle);
+      Matter.World.add(this.world, obstacle);
+    }
   }
 
   public update(input: PlayerInput) {
@@ -106,57 +248,58 @@ export class GameEngine {
 
     this.handleMovement(input);
     this.handleDash(input);
+    this.hero.update(this.frame);
     this.updateEnemies();
     this.spawnEnemies();
 
     Matter.Engine.update(this.engine, 1000 / 60);
 
     this.updateEntropy();
+    this.checkLevelUp();
 
-    if (this.health <= 0) {
+    if (this.hero.health <= 0) {
       this.isGameOver = true;
     }
   }
 
   private handleMovement(input: PlayerInput) {
-    if (this.isDashing) return;
+    if (this.hero.isDashing) return;
 
-    const forceMagnitude = 0.002;
     const force = { x: 0, y: 0 };
-    if (input.up) force.y -= forceMagnitude;
-    if (input.down) force.y += forceMagnitude;
-    if (input.left) force.x -= forceMagnitude;
-    if (input.right) force.x += forceMagnitude;
+    if (input.up) force.y -= this.hero.moveSpeed;
+    if (input.down) force.y += this.hero.moveSpeed;
+    if (input.left) force.x -= this.hero.moveSpeed;
+    if (input.right) force.x += this.hero.moveSpeed;
 
-    Matter.Body.applyForce(this.player, this.player.position, force);
+    Matter.Body.applyForce(this.hero.body, this.hero.body.position, force);
   }
 
   private handleDash(input: PlayerInput) {
-    const canDash = this.frame - this.lastDashFrame > this.dashCooldown;
+    const canDash = this.frame - this.hero.lastDashFrame > this.hero.dashCooldown;
 
-    if (input.dash && canDash && !this.isDashing) {
-      this.isDashing = true;
-      this.lastDashFrame = this.frame;
-
-      const dashVector = Matter.Vector.sub(input.mousePos, this.player.position);
-      const dashDirection = Matter.Vector.normalise(dashVector);
-      const dashImpulse = Matter.Vector.mult(dashDirection, 0.05);
-
-      this.player.frictionAir = 0;
-      Matter.Body.applyForce(this.player, this.player.position, dashImpulse);
+    if (input.dash && canDash && !this.hero.isDashing) {
+      this.hero.isDashing = true;
+      this.hero.lastDashFrame = this.frame;
+      this.hero.onDash(input, this.frame);
     }
 
-    if (this.isDashing && this.frame - this.lastDashFrame > this.dashDuration) {
-      this.isDashing = false;
-      this.player.frictionAir = 0.1;
+    if (this.hero.isDashing && this.frame - this.hero.lastDashFrame > this.hero.dashDuration) {
+      this.hero.isDashing = false;
+      this.hero.body.frictionAir = 0.1;
     }
   }
 
   private spawnEnemies() {
+    // Director AI logic
+    const healthPercent = this.hero.health / this.hero.maxHealth;
+    let spawnMultiplier = 1;
+    if (healthPercent > 0.8) spawnMultiplier = 1.5;
+    if (healthPercent < 0.2) spawnMultiplier = 0.5;
+
     const baseSpawnRate = 120;
     const k = 0.5;
     const t = this.frame / 60;
-    const spawnInterval = Math.max(20, Math.floor(baseSpawnRate - k * t));
+    const spawnInterval = Math.max(15, Math.floor((baseSpawnRate - k * t) / spawnMultiplier));
 
     if (this.frame % spawnInterval === 0) {
       const type = this.getRandomEnemyType();
@@ -202,7 +345,7 @@ export class GameEngine {
   private updateEnemies() {
     this.enemies.forEach(enemy => {
       const type = (enemy as any).enemyType;
-      const target = this.player.position;
+      const target = this.hero.body.position;
 
       if (type === EnemyType.SWARMER || type === EnemyType.SEEKER) {
         const forceMagnitude = type === EnemyType.SWARMER ? 0.0005 : 0.0003;
@@ -218,24 +361,43 @@ export class GameEngine {
     const labels = [bodyA.label, bodyB.label];
 
     if (labels.includes('player') && labels.includes('enemy')) {
-      if (this.isDashing) {
-        const enemy = bodyA.label === 'enemy' ? bodyA : bodyB;
-        this.killEnemy(enemy);
+      const enemy = bodyA.label === 'enemy' ? bodyA : bodyB;
+      if (this.hero.isDashing) {
+        let damageMultiplier = 1;
+        if (this.hero.type === HeroClassType.TANK) damageMultiplier = 2.0;
+        // Assassin Critical placeholder
+        this.killEnemy(enemy, damageMultiplier);
       } else {
-        this.health -= 10;
+        let damage = 10;
+        if (this.hero.type === HeroClassType.TANK) damage *= 0.85;
+        this.hero.health -= damage;
       }
     }
   }
 
-  private killEnemy(enemy: Matter.Body) {
+  private killEnemy(enemy: Matter.Body, multiplier: number = 1) {
     Matter.World.remove(this.world, enemy);
     this.enemies = this.enemies.filter(e => e !== enemy);
-    this.score += 25;
+    this.score += Math.floor(25 * multiplier);
+    this.kills++;
+
+    if (this.hero.type === HeroClassType.FIGHTER) {
+      this.hero.health = Math.min(this.hero.maxHealth, this.hero.health + this.hero.maxHealth * 0.01); // 1% heal per kill (vampiric placeholder)
+    }
   }
 
   private updateEntropy() {
     const t = this.frame / 60;
-    this.omega = 1 + 2 * Math.log(1 + 0.2 * t);
+    this.omega = 1 + 2 * Math.log(1 + 0.2 * t) + (this.level - 1) * 0.5;
+  }
+
+  private checkLevelUp() {
+    const threshold = 15 + this.level * 5;
+    if (this.kills >= threshold) {
+      this.level++;
+      this.kills = 0;
+      // Trigger level up UI event from client
+    }
   }
 
   public getScore(): number {
