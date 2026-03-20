@@ -2,13 +2,14 @@
 
 import React, { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Float, MeshDistortMaterial } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Float } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameStore } from '../store/useGameStore';
 import { HeroClassType } from '@arena-dash/engine';
 
-const HumanoidModel: React.FC<{ color: string; classType: HeroClassType }> = ({ color, classType }) => {
+const HumanoidModel: React.FC<{ color: string; classType: string }> = ({ color, classType }) => {
   const meshRef = useRef<THREE.Group>(null);
+  const heroType = classType.toUpperCase() as HeroClassType;
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -20,7 +21,7 @@ const HumanoidModel: React.FC<{ color: string; classType: HeroClassType }> = ({ 
     <group ref={meshRef}>
       {/* Body */}
       <mesh position={[0, 0, 0]}>
-        <boxGeometry args={classType === HeroClassType.TANK ? [1, 1.5, 0.8] : [0.8, 1.2, 0.5]} />
+        <boxGeometry args={heroType === HeroClassType.TANK ? [1, 1.5, 0.8] : [0.8, 1.2, 0.5]} />
         <meshStandardMaterial color={color} />
       </mesh>
       {/* Head */}
@@ -29,13 +30,13 @@ const HumanoidModel: React.FC<{ color: string; classType: HeroClassType }> = ({ 
         <meshStandardMaterial color="#dddddd" />
       </mesh>
       {/* Specific Class Augments */}
-      {classType === HeroClassType.MARKSMAN && (
+      {heroType === HeroClassType.MARKSMAN && (
           <mesh position={[0.5, 0.2, 0.5]}>
               <boxGeometry args={[0.1, 0.1, 1]} />
               <meshStandardMaterial color="#444" />
           </mesh>
       )}
-      {classType === HeroClassType.MAGE && (
+      {heroType === HeroClassType.MAGE && (
            <mesh position={[0, 1, 0]}>
            <sphereGeometry args={[0.4, 32, 32]} />
            <meshBasicMaterial color={color} transparent opacity={0.3} />
@@ -46,9 +47,9 @@ const HumanoidModel: React.FC<{ color: string; classType: HeroClassType }> = ({ 
 };
 
 export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { selectedClass, customHexColor, setGameState } = useGameStore();
+  const { selected_class, custom_hex_color, setGameState, stats, inventory } = useGameStore();
 
-  const HERO_DETAILS = {
+  const HERO_DETAILS: Record<string, any> = {
     [HeroClassType.TANK]: {
         title: "The Juggernaut",
         ability: "Shield Charge: High-weight dash with knockback and 2x damage.",
@@ -81,23 +82,36 @@ export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     }
   };
 
+  const currentHeroType = selected_class.toUpperCase();
+
   return (
     <div className="fixed inset-0 bg-[#050506] z-50 flex">
       {/* Sidebar */}
       <div className="w-96 border-r border-[#1A1A1B] p-8 flex flex-col overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-8 tracking-tighter">THE FORGE</h2>
+        <h2 className="text-2xl font-bold mb-8 tracking-tighter text-[#00F2FF]">THE FORGE</h2>
+
+        <div className="mb-4 flex justify-between items-end border-b border-[#1A1A1B] pb-4">
+             <div>
+                <div className="text-[10px] text-[#8E8E93] uppercase">Kills</div>
+                <div className="text-xl font-bold">{stats.kills.toLocaleString()}</div>
+             </div>
+             <div className="text-right">
+                <div className="text-[10px] text-[#8E8E93] uppercase">Ops</div>
+                <div className="text-xl font-bold">{stats.games_played}</div>
+             </div>
+        </div>
 
         <div className="mb-8">
-          <label className="text-xs text-[#8E8E93] uppercase tracking-widest block mb-4">Patterns</label>
+          <label className="text-xs text-[#8E8E93] uppercase tracking-widest block mb-4">Hero Pattern</label>
           <div className="grid grid-cols-1 gap-2">
             {Object.values(HeroClassType).map(hero => (
               <button
                 key={hero}
-                onClick={() => setGameState({ selectedClass: hero })}
-                className={`group py-3 text-left pl-4 border ${selectedClass === hero ? 'border-[#00F2FF] bg-[#00F2FF]/5' : 'border-[#1A1A1B] hover:border-[#ffffff20]'} transition-all`}
+                onClick={() => setGameState({ selected_class: hero.toLowerCase() })}
+                className={`group py-3 text-left pl-4 border ${currentHeroType === hero ? 'border-[#00F2FF] bg-[#00F2FF]/5' : 'border-[#1A1A1B] hover:border-[#ffffff20]'} transition-all`}
               >
-                <div className={`text-[10px] uppercase tracking-widest ${selectedClass === hero ? 'text-[#00F2FF]' : 'text-[#8E8E93]'}`}>{hero}</div>
-                <div className={`text-xs font-bold ${selectedClass === hero ? 'text-white' : 'text-[#8E8E93]'}`}>{HERO_DETAILS[hero].title}</div>
+                <div className={`text-[10px] uppercase tracking-widest ${currentHeroType === hero ? 'text-[#00F2FF]' : 'text-[#8E8E93]'}`}>{hero}</div>
+                <div className={`text-xs font-bold ${currentHeroType === hero ? 'text-white' : 'text-[#8E8E93]'}`}>{HERO_DETAILS[hero].title}</div>
               </button>
             ))}
           </div>
@@ -105,18 +119,18 @@ export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
         <div className="mb-8 p-4 bg-[#1A1A1B]/50 border border-[#1A1A1B] rounded">
              <div className="text-[10px] text-[#00F2FF] uppercase tracking-widest mb-2 italic">Class Intel</div>
-             <div className="text-xs text-white mb-2 leading-relaxed font-bold">{HERO_DETAILS[selectedClass].ability}</div>
-             <div className="text-xs text-[#8E8E93] leading-relaxed">{HERO_DETAILS[selectedClass].passive}</div>
+             <div className="text-xs text-white mb-2 leading-relaxed font-bold">{HERO_DETAILS[currentHeroType]?.ability}</div>
+             <div className="text-xs text-[#8E8E93] leading-relaxed">{HERO_DETAILS[currentHeroType]?.passive}</div>
         </div>
 
         <div className="mb-8">
-          <label className="text-xs text-[#8E8E93] uppercase tracking-widest block mb-4">Core Hue</label>
+          <label className="text-xs text-[#8E8E93] uppercase tracking-widest block mb-4">Aura Hue</label>
           <div className="grid grid-cols-6 gap-2">
             {['#00F2FF', '#FF0043', '#7000FF', '#39FF14', '#FFB800', '#FFFFFF'].map(c => (
               <button
                 key={c}
-                onClick={() => setGameState({ customHexColor: c })}
-                className={`w-full aspect-square border-2 ${customHexColor === c ? 'border-white' : 'border-transparent'}`}
+                onClick={() => setGameState({ custom_hex_color: c })}
+                className={`w-full aspect-square border-2 ${custom_hex_color === c ? 'border-white' : 'border-transparent'}`}
                 style={{ backgroundColor: c }}
               />
             ))}
@@ -128,7 +142,7 @@ export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             onClick={onClose}
             className="w-full py-4 bg-[#00F2FF] text-[#050506] font-bold uppercase tracking-widest text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,242,255,0.3)]"
           >
-            Equip & Sync
+            Deploy Unit
           </button>
         </div>
       </div>
@@ -139,23 +153,24 @@ export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <PerspectiveCamera makeDefault position={[0, 0, 4]} />
           <OrbitControls enableZoom={false} />
           <ambientLight intensity={0.5} />
-          <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} color={customHexColor} />
+          <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} color={custom_hex_color} />
           <pointLight position={[-10, -10, -10]} intensity={0.5} />
 
           <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-            <HumanoidModel color={customHexColor} classType={selectedClass} />
+            <HumanoidModel color={custom_hex_color} classType={selected_class} />
           </Float>
 
           <gridHelper args={[10, 10, '#1A1A1B', '#1A1A1B']} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -1]} />
         </Canvas>
 
         <div className="absolute bottom-8 right-8 text-right pointer-events-none">
-            <div className="text-[10px] text-[#8E8E93] uppercase tracking-[0.5em] mb-2 opacity-50">Biometric Alignment: Optimal</div>
+            <div className="text-[10px] text-[#8E8E93] uppercase tracking-[0.5em] mb-2 opacity-50">Sync Integrity: Green</div>
             <div className="text-4xl font-black text-white italic opacity-10 tracking-tighter uppercase select-none">
-                {selectedClass}
+                {selected_class}
             </div>
         </div>
       </div>
     </div>
   );
 };
+EOF

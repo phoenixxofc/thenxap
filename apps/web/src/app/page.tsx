@@ -8,7 +8,8 @@ import { useGameStore } from '../store/useGameStore';
 
 export default function Home() {
   const [showForge, setShowForge] = useState(false);
-  const selectedClass = useGameStore((state) => state.selectedClass);
+  const selected_class = useGameStore((state) => state.selected_class);
+  const heroClass = selected_class.toUpperCase() as HeroClassType;
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-[#050506] text-[#00F2FF] font-mono p-8 overflow-hidden">
@@ -20,7 +21,7 @@ export default function Home() {
         </div>
       </div>
       <div className="relative w-[800px] h-[600px] border-2 border-[#1A1A1B] shadow-[0_0_50px_rgba(0,242,255,0.1)] overflow-hidden">
-        <PhaserGame selectedClass={selectedClass} />
+        <PhaserGame selectedClass={heroClass} />
         <HUD />
       </div>
       {showForge && <Forge onClose={() => setShowForge(false)} />}

@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { HeroClassType } from '@arena-dash/engine';
+import { ProfileManager, UserProfile } from '../lib/ProfileManager';
 
-interface GameState {
+interface GameState extends UserProfile {
   score: number;
   health: number;
   maxHealth: number;
@@ -10,25 +11,10 @@ interface GameState {
   kills: number;
   isGameOver: boolean;
   isSubmitting: boolean;
-  selectedClass: HeroClassType;
-  customHexColor: string;
   setGameState: (state: Partial<GameState>) => void;
   resetGame: () => void;
   submitScore: (wallet: string, inputLog: any[], seed: string) => Promise<void>;
 }
-
-const STORAGE_KEY = 'arena_dash_profile';
-
-const loadProfile = () => {
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  }
-  return {
-    selectedClass: HeroClassType.FIGHTER,
-    customHexColor: '#00F2FF',
-  };
-};
 
 export const gameData = {
     score: 0,
@@ -37,7 +23,8 @@ export const gameData = {
     omega: 1,
     level: 1,
     kills: 0,
-    isGameOver: false
+    isGameOver: false,
+    isLevelUpPending: false
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -49,15 +36,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   kills: 0,
   isGameOver: false,
   isSubmitting: false,
-  ...loadProfile(),
+  ...ProfileManager.load(),
   setGameState: (state) => {
     set((prev) => {
       const newState = { ...prev, ...state };
-      if (typeof window !== 'undefined' && (state.selectedClass || state.customHexColor)) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          selectedClass: newState.selectedClass,
-          customHexColor: newState.customHexColor,
-        }));
+      // Sync to profile if persistent fields changed
+      if (state.selected_class || state.custom_hex_color || state.unlocked_levels || state.stats || state.inventory) {
+          ProfileManager.save(newState);
       }
       return newState;
     });
@@ -88,7 +73,14 @@ export const useGameStore = create<GameState>((set, get) => ({
           const data = await response.json();
           if (data.valid) {
               console.log("Proof of Score generated:", data.signature);
-              // In a real scenario, we'd now call the smart contract via Wagmi
+              // Update persistent stats on success
+              const currentStats = get().stats;
+              get().setGameState({
+                  stats: {
+                      kills: currentStats.kills + get().kills,
+                      games_played: currentStats.games_played + 1
+                  }
+              });
           }
       } catch (e) {
           console.error("Submission failed", e);

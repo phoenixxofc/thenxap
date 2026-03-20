@@ -1,26 +1,11 @@
 import * as Phaser from 'phaser';
 import { GameEngine, PlayerInput, HeroClassType, ObstacleType } from '@arena-dash/engine';
 import { useGameStore, gameData } from '../store/useGameStore';
-
-const TINT_SHADER = `
-precision mediump float;
-varying vec2 outTexCoord;
-uniform sampler2D uMainSampler;
-uniform vec3 uTint;
-
-void main() {
-    vec4 texel = texture2D(uMainSampler, outTexCoord);
-    // Gray scale intensity
-    float intensity = (texel.r + texel.g + texel.b) / 3.0;
-    // Apply tint to the grayscale
-    gl_FragColor = vec4(intensity * uTint, texel.a);
-}
-`;
+import { Humanoid } from './Humanoid';
 
 export class GameScene extends Phaser.Scene {
   private engine!: GameEngine;
-  private heroContainer!: Phaser.GameObjects.Container;
-  private heroSprite!: Phaser.GameObjects.Rectangle; // Placeholder for high-fidelity humanoid
+  private heroHumanoid!: Humanoid;
   private enemyGraphics!: Map<number, Phaser.GameObjects.Graphics>;
   private obstacleGraphics!: Map<number, Phaser.GameObjects.Graphics>;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -43,18 +28,10 @@ export class GameScene extends Phaser.Scene {
         heroClass: this.heroClass
     });
 
-    // Create hero representation (Humanoid Placeholder)
-    this.heroContainer = this.add.container(400, 300);
-    this.heroSprite = this.add.rectangle(0, 0, 30, 50, 0xffffff); // Grayscale body
-    const head = this.add.circle(0, -30, 10, 0xdddddd);
-    this.heroContainer.add([this.heroSprite, head]);
-
-    // Apply Tint Shader
-    const customColor = useGameStore.getState().customHexColor;
-    const color = Phaser.Display.Color.HexStringToColor(customColor);
-    // Note: In a real shader setup, we'd use a PostFX or custom pipeline.
-    // For this demonstration, we'll use Phaser's built-in tinting logic on the container's children.
-    this.heroSprite.setTint(color.color);
+    // Create detailed humanoid
+    const customColorStr = useGameStore.getState().customHexColor;
+    const color = Phaser.Display.Color.HexStringToColor(customColorStr).color;
+    this.heroHumanoid = new Humanoid(this, 400, 300, color);
 
     this.enemyGraphics = new Map();
     this.obstacleGraphics = new Map();
@@ -80,22 +57,25 @@ export class GameScene extends Phaser.Scene {
     const prevHealth = this.engine.hero.health;
     this.engine.update(input);
 
-    // Advanced VFX: Hit-stop & Screenshake
+    // Hit-stop & Screenshake
     if (this.engine.hero.health < prevHealth) {
         this.cameras.main.shake(200, 0.005);
-        // Hit-stop simulation
         this.game.loop.sleep = true;
         setTimeout(() => { if (this.game) this.game.loop.sleep = false; }, 50);
     }
 
-    // Class specific visual updates
-    if (this.engine.hero.isInvisible) {
-        this.heroContainer.setAlpha(0.3);
-    } else {
-        this.heroContainer.setAlpha(1.0);
+    // Animation: 16-frame walk cycle
+    if (input.up || input.down || input.left || input.right) {
+        this.heroHumanoid.playWalkAnimation(this.engine.frame);
     }
 
-    // Sync to React State (Optimized)
+    if (this.engine.hero.isInvisible) {
+        this.heroHumanoid.setAlpha(0.3);
+    } else {
+        this.heroHumanoid.setAlpha(1.0);
+    }
+
+    // Sync non-reactive game state
     gameData.score = this.engine.getScore();
     gameData.health = Math.floor(this.engine.hero.health);
     gameData.maxHealth = this.engine.hero.maxHealth;
@@ -108,13 +88,17 @@ export class GameScene extends Phaser.Scene {
         useGameStore.getState().setGameState({ isGameOver: true });
     }
 
+    if (this.engine.isLevelUpPending && !useGameStore.getState().isLevelUpPending) {
+        useGameStore.getState().setGameState({ isLevelUpPending: true });
+    }
+
     this.renderEngine();
   }
 
   private renderEngine() {
     // Render Hero with Depth Sorting
-    this.heroContainer.setPosition(this.engine.hero.body.position.x, this.engine.hero.body.position.y);
-    this.heroContainer.setDepth(this.heroContainer.y);
+    this.heroHumanoid.setPosition(this.engine.hero.body.position.x, this.engine.hero.body.position.y);
+    this.heroHumanoid.setDepth(this.heroHumanoid.y);
 
     // Render Enemies
     const currentEnemyIds = new Set(this.engine.enemies.map(e => (e as any).id));
@@ -141,7 +125,7 @@ export class GameScene extends Phaser.Scene {
       graphics.setDepth(enemy.position.y);
     });
 
-    // Render Obstacles (Pillars vs Hazards)
+    // Render Obstacles
     this.engine.obstacles.forEach((obstacle, index) => {
         let graphics = this.obstacleGraphics.get(index);
         if (!graphics) {
@@ -152,11 +136,11 @@ export class GameScene extends Phaser.Scene {
 
         const type = (obstacle as any).obstacleType;
         if (type === ObstacleType.HAZARD) {
-            graphics.fillStyle(0xFF9500, 0.5); // Orange hazard
+            graphics.fillStyle(0xFF9500, 0.5);
             graphics.lineStyle(2, 0xFF9500, 1);
             graphics.strokeRect(obstacle.position.x - 20, obstacle.position.y - 20, 40, 40);
         } else {
-            graphics.fillStyle(0x1A1A1B, 1); // Solid pillar
+            graphics.fillStyle(0x1A1A1B, 1);
         }
 
         const vertices = obstacle.vertices;

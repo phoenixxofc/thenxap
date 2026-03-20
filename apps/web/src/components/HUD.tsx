@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useGameStore, gameData } from '../store/useGameStore';
 
 export const HUD: React.FC = () => {
-  const { isGameOver, selectedClass } = useGameStore();
+  const { isGameOver, isLevelUpPending, selectedClass, stats, setGameState } = useGameStore();
   const [localData, setLocalData] = useState(gameData);
 
   useEffect(() => {
@@ -66,11 +66,31 @@ export const HUD: React.FC = () => {
         <div className="text-[10px] mt-1 text-[#8E8E93]">{health}/{maxHealth}</div>
       </div>
 
+      {/* Level Up Overlay */}
+      {isLevelUpPending && (
+        <div className="absolute inset-0 bg-[#050506f0] pointer-events-auto flex flex-col items-center justify-center backdrop-blur-sm z-20">
+          <h2 className="text-4xl font-black text-[#39FF14] mb-2 tracking-tighter italic">SECTOR BREACHED</h2>
+          <p className="text-[#8E8E93] mb-8 uppercase tracking-[0.3em]">Select Neural Augment</p>
+          <div className="grid grid-cols-1 gap-4 w-64">
+            {['Kinetic Boost', 'Neural Shield', 'Thermal Gaze'].map(opt => (
+              <button
+                key={opt}
+                onClick={() => setGameState({ isLevelUpPending: false })}
+                className="border border-[#39FF14] text-[#39FF14] py-3 hover:bg-[#39FF14] hover:text-[#050506] transition-all uppercase text-xs font-bold"
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Game Over Overlay */}
       {isGameOver && (
         <div className="absolute inset-0 bg-[#050506f0] pointer-events-auto flex flex-col items-center justify-center backdrop-blur-sm">
           <h2 className="text-5xl font-black text-[#FF0043] mb-2 tracking-tighter">NEURAL LINK SEVERED</h2>
-          <p className="text-[#8E8E93] mb-8 uppercase tracking-[0.3em]">Sector {level} Breached | Final Score {score}</p>
+          <p className="text-[#8E8E93] mb-2 uppercase tracking-[0.3em]">Sector {level} Breached | Final Score {score}</p>
+          <div className="text-[10px] text-[#8E8E93] mb-8 uppercase">Total Career Kills: {stats.kills + kills}</div>
           <button
             onClick={() => window.location.reload()}
             className="border-2 border-[#00F2FF] text-[#00F2FF] px-10 py-3 font-bold hover:bg-[#00F2FF] hover:text-[#050506] transition-all uppercase tracking-widest"
