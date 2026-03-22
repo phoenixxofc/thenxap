@@ -4,13 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { useGameStore, gameData } from '../store/useGameStore';
 
 export const HUD: React.FC = () => {
-  const { isGameOver, isLevelUpPending, selectedClass, stats, setGameState } = useGameStore();
+  const { isGameOver, isLevelUpPending, selected_class, stats, setGameState } = useGameStore();
   const [localData, setLocalData] = useState(gameData);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setLocalData({ ...gameData });
-    }, 100); // 10Hz updates for HUD elements is plenty
+    }, 100);
     return () => clearInterval(interval);
   }, []);
 
@@ -20,13 +20,11 @@ export const HUD: React.FC = () => {
 
   return (
     <div className="absolute inset-0 pointer-events-none p-6 font-mono z-10">
-      {/* Top Left: Score & Class */}
       <div className="absolute top-6 left-6">
-        <div className="text-[#8E8E93] text-xs uppercase tracking-widest mb-1">{selectedClass} UNIT ACTIVE</div>
+        <div className="text-[#8E8E93] text-xs uppercase tracking-widest mb-1">{selected_class} UNIT ACTIVE</div>
         <div className="text-3xl font-bold text-[#00F2FF]">{score.toLocaleString()}</div>
       </div>
 
-      {/* Top Center: Level Progress */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 text-center">
         <div className="text-[#8E8E93] text-xs uppercase tracking-widest mb-1">Sector Depth: {level}</div>
         <div className="w-48 h-1 bg-[#1A1A1B]">
@@ -38,7 +36,6 @@ export const HUD: React.FC = () => {
         <div className="text-[10px] mt-1 text-[#39FF14]">{kills}/{levelThreshold} TO NEXT SECTOR</div>
       </div>
 
-      {/* Top Right: Entropy Meter */}
       <div className="absolute top-6 right-6 text-right">
         <div className="text-[#8E8E93] text-xs uppercase tracking-widest mb-1">Entropy Factor</div>
         <div className="text-xl font-bold text-[#FFB800]">Ω {omega.toFixed(2)}</div>
@@ -50,7 +47,6 @@ export const HUD: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Center: Health Bar */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-64 text-center">
         <div className="text-[#8E8E93] text-[10px] uppercase tracking-[0.2em] mb-2">Vitals Integrity</div>
         <div className="w-full h-2 bg-[#1A1A1B] rounded-full overflow-hidden border border-[#ffffff10]">
@@ -66,7 +62,6 @@ export const HUD: React.FC = () => {
         <div className="text-[10px] mt-1 text-[#8E8E93]">{health}/{maxHealth}</div>
       </div>
 
-      {/* Level Up Overlay */}
       {isLevelUpPending && (
         <div className="absolute inset-0 bg-[#050506f0] pointer-events-auto flex flex-col items-center justify-center backdrop-blur-sm z-20">
           <h2 className="text-4xl font-black text-[#39FF14] mb-2 tracking-tighter italic">SECTOR BREACHED</h2>
@@ -85,7 +80,6 @@ export const HUD: React.FC = () => {
         </div>
       )}
 
-      {/* Game Over Overlay */}
       {isGameOver && (
         <div className="absolute inset-0 bg-[#050506f0] pointer-events-auto flex flex-col items-center justify-center backdrop-blur-sm">
           <h2 className="text-5xl font-black text-[#FF0043] mb-2 tracking-tighter">NEURAL LINK SEVERED</h2>

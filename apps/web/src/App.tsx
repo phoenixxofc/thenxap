@@ -1,12 +1,11 @@
-'use client';
 import React, { useState } from 'react';
-import dynamic from 'next/dynamic';
-const PhaserGame = dynamic(() => import('../game/PhaserGame').then(mod => mod.PhaserGame), { ssr: false });
-import { HUD } from '../components/HUD';
-import { Forge } from '../components/Forge';
-import { useGameStore } from '../store/useGameStore';
+import { PhaserGame } from './game/PhaserGame';
+import { HUD } from './components/HUD';
+import { Forge } from './components/Forge';
+import { useGameStore } from './store/useGameStore';
+import { HeroClassType } from '@arena-dash/engine';
 
-export default function Home() {
+function App() {
   const [showForge, setShowForge] = useState(false);
   const selected_class = useGameStore((state) => state.selected_class);
   const heroClass = selected_class.toUpperCase() as HeroClassType;
@@ -28,3 +27,5 @@ export default function Home() {
     </main>
   );
 }
+
+export default App;

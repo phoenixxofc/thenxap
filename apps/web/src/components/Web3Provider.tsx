@@ -9,7 +9,7 @@ const config = createConfig({ chains: [polygon], transports: { [polygon.id]: htt
 const queryClient = new QueryClient();
 
 export default function Web3Provider({ children }: { children: React.ReactNode }) {
-  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const appId = import.meta.env.VITE_PRIVY_APP_ID || 'test-app-id';
 
   if (!appId || appId === 'test-app-id') {
       return (

@@ -10,6 +10,7 @@ interface GameState extends UserProfile {
   level: number;
   kills: number;
   isGameOver: boolean;
+  isLevelUpPending: boolean;
   isSubmitting: boolean;
   setGameState: (state: Partial<GameState>) => void;
   resetGame: () => void;
@@ -23,8 +24,7 @@ export const gameData = {
     omega: 1,
     level: 1,
     kills: 0,
-    isGameOver: false,
-    isLevelUpPending: false
+    isGameOver: false
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -35,12 +35,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   level: 1,
   kills: 0,
   isGameOver: false,
+  isLevelUpPending: false,
   isSubmitting: false,
   ...ProfileManager.load(),
   setGameState: (state) => {
     set((prev) => {
       const newState = { ...prev, ...state };
-      // Sync to profile if persistent fields changed
       if (state.selected_class || state.custom_hex_color || state.unlocked_levels || state.stats || state.inventory) {
           ProfileManager.save(newState);
       }
@@ -55,7 +55,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameData.level = 1;
       gameData.kills = 0;
       gameData.isGameOver = false;
-      set({ score: 0, health: 100, maxHealth: 100, omega: 1, level: 1, kills: 0, isGameOver: false, isSubmitting: false });
+      set({ score: 0, health: 100, maxHealth: 100, omega: 1, level: 1, kills: 0, isGameOver: false, isSubmitting: false, isLevelUpPending: false });
   },
   submitScore: async (wallet, inputLog, seed) => {
       set({ isSubmitting: true });
@@ -72,8 +72,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           });
           const data = await response.json();
           if (data.valid) {
-              console.log("Proof of Score generated:", data.signature);
-              // Update persistent stats on success
               const currentStats = get().stats;
               get().setGameState({
                   stats: {

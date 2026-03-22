@@ -66,9 +66,9 @@ npm run dev
 
 ## Vercel Deployment
 
-Arena Dash is built on the **Next.js** framework. When deploying to Vercel, use the following settings:
+Arena Dash is built with **React + Vite**. When deploying to Vercel, use the following settings:
 
-1. **Framework Preset:** `Next.js`
+1. **Framework Preset:** `Vite`
 2. **Root Directory:** `apps/web`
 3. **Build Command:** `cd ../.. && npm run build`
 4. **Install Command:** `cd ../.. && npm install`

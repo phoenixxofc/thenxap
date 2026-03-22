@@ -29,8 +29,6 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ selectedClass }) => {
       };
 
       gameRef.current = new Phaser.Game(config);
-
-      // Start scene with selected class
       gameRef.current.scene.start('GameScene', { heroClass: selectedClass });
     }
 
@@ -42,5 +40,5 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ selectedClass }) => {
     };
   }, [selectedClass]);
 
-  return <div ref={gameContainerRef} className="rounded-lg overflow-hidden border-2 border-[#1A1A1B] shadow-[0_0_20px_rgba(0,242,255,0.2)]" />;
+  return <div ref={gameContainerRef} className="w-full h-full" />;
 };

@@ -6,8 +6,11 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -ws",
-    "dev": "npm run dev -ws",
+    "build": "turbo build",
+    "dev": "turbo dev",
     "dev:web": "npm run dev -w @arena-dash/web"
+  },
+  "devDependencies": {
+    "turbo": "latest"
   }
 }

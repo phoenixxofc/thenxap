@@ -11,7 +11,7 @@ const HumanoidModel: React.FC<{ color: string; classType: string }> = ({ color, 
   const meshRef = useRef<THREE.Group>(null);
   const heroType = classType.toUpperCase() as HeroClassType;
 
-  useFrame((state) => {
+  useFrame(() => {
     if (meshRef.current) {
       meshRef.current.rotation.y += 0.01;
     }
@@ -19,17 +19,14 @@ const HumanoidModel: React.FC<{ color: string; classType: string }> = ({ color, 
 
   return (
     <group ref={meshRef}>
-      {/* Body */}
       <mesh position={[0, 0, 0]}>
         <boxGeometry args={heroType === HeroClassType.TANK ? [1, 1.5, 0.8] : [0.8, 1.2, 0.5]} />
         <meshStandardMaterial color={color} />
       </mesh>
-      {/* Head */}
       <mesh position={[0, 1, 0]}>
         <sphereGeometry args={[0.3, 32, 32]} />
         <meshStandardMaterial color="#dddddd" />
       </mesh>
-      {/* Specific Class Augments */}
       {heroType === HeroClassType.MARKSMAN && (
           <mesh position={[0.5, 0.2, 0.5]}>
               <boxGeometry args={[0.1, 0.1, 1]} />
@@ -47,7 +44,7 @@ const HumanoidModel: React.FC<{ color: string; classType: string }> = ({ color, 
 };
 
 export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { selected_class, custom_hex_color, setGameState, stats, inventory } = useGameStore();
+  const { selected_class, custom_hex_color, setGameState, stats } = useGameStore();
 
   const HERO_DETAILS: Record<string, any> = {
     [HeroClassType.TANK]: {
@@ -86,10 +83,8 @@ export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-[#050506] z-50 flex">
-      {/* Sidebar */}
       <div className="w-96 border-r border-[#1A1A1B] p-8 flex flex-col overflow-y-auto">
         <h2 className="text-2xl font-bold mb-8 tracking-tighter text-[#00F2FF]">THE FORGE</h2>
-
         <div className="mb-4 flex justify-between items-end border-b border-[#1A1A1B] pb-4">
              <div>
                 <div className="text-[10px] text-[#8E8E93] uppercase">Kills</div>
@@ -100,7 +95,6 @@ export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <div className="text-xl font-bold">{stats.games_played}</div>
              </div>
         </div>
-
         <div className="mb-8">
           <label className="text-xs text-[#8E8E93] uppercase tracking-widest block mb-4">Hero Pattern</label>
           <div className="grid grid-cols-1 gap-2">
@@ -116,13 +110,11 @@ export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             ))}
           </div>
         </div>
-
         <div className="mb-8 p-4 bg-[#1A1A1B]/50 border border-[#1A1A1B] rounded">
              <div className="text-[10px] text-[#00F2FF] uppercase tracking-widest mb-2 italic">Class Intel</div>
              <div className="text-xs text-white mb-2 leading-relaxed font-bold">{HERO_DETAILS[currentHeroType]?.ability}</div>
              <div className="text-xs text-[#8E8E93] leading-relaxed">{HERO_DETAILS[currentHeroType]?.passive}</div>
         </div>
-
         <div className="mb-8">
           <label className="text-xs text-[#8E8E93] uppercase tracking-widest block mb-4">Aura Hue</label>
           <div className="grid grid-cols-6 gap-2">
@@ -136,18 +128,10 @@ export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             ))}
           </div>
         </div>
-
         <div className="mt-auto pt-8">
-          <button
-            onClick={onClose}
-            className="w-full py-4 bg-[#00F2FF] text-[#050506] font-bold uppercase tracking-widest text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,242,255,0.3)]"
-          >
-            Deploy Unit
-          </button>
+          <button onClick={onClose} className="w-full py-4 bg-[#00F2FF] text-[#050506] font-bold uppercase tracking-widest text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,242,255,0.3)]">Deploy Unit</button>
         </div>
       </div>
-
-      {/* 3D Preview */}
       <div className="flex-1 relative">
         <Canvas>
           <PerspectiveCamera makeDefault position={[0, 0, 4]} />
@@ -155,22 +139,14 @@ export const Forge: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <ambientLight intensity={0.5} />
           <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} color={custom_hex_color} />
           <pointLight position={[-10, -10, -10]} intensity={0.5} />
-
-          <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-            <HumanoidModel color={custom_hex_color} classType={selected_class} />
-          </Float>
-
+          <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}><HumanoidModel color={custom_hex_color} classType={selected_class} /></Float>
           <gridHelper args={[10, 10, '#1A1A1B', '#1A1A1B']} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -1]} />
         </Canvas>
-
         <div className="absolute bottom-8 right-8 text-right pointer-events-none">
             <div className="text-[10px] text-[#8E8E93] uppercase tracking-[0.5em] mb-2 opacity-50">Sync Integrity: Green</div>
-            <div className="text-4xl font-black text-white italic opacity-10 tracking-tighter uppercase select-none">
-                {selected_class}
-            </div>
+            <div className="text-4xl font-black text-white italic opacity-10 tracking-tighter uppercase select-none">{selected_class}</div>
         </div>
       </div>
     </div>
   );
 };
-EOF

@@ -28,8 +28,7 @@ export class GameScene extends Phaser.Scene {
         heroClass: this.heroClass
     });
 
-    // Create detailed humanoid
-    const customColorStr = useGameStore.getState().customHexColor;
+    const customColorStr = useGameStore.getState().custom_hex_color;
     const color = Phaser.Display.Color.HexStringToColor(customColorStr).color;
     this.heroHumanoid = new Humanoid(this, 400, 300, color);
 
@@ -57,14 +56,12 @@ export class GameScene extends Phaser.Scene {
     const prevHealth = this.engine.hero.health;
     this.engine.update(input);
 
-    // Hit-stop & Screenshake
     if (this.engine.hero.health < prevHealth) {
         this.cameras.main.shake(200, 0.005);
         this.game.loop.sleep = true;
         setTimeout(() => { if (this.game) this.game.loop.sleep = false; }, 50);
     }
 
-    // Animation: 16-frame walk cycle
     if (input.up || input.down || input.left || input.right) {
         this.heroHumanoid.playWalkAnimation(this.engine.frame);
     }
@@ -75,7 +72,6 @@ export class GameScene extends Phaser.Scene {
         this.heroHumanoid.setAlpha(1.0);
     }
 
-    // Sync non-reactive game state
     gameData.score = this.engine.getScore();
     gameData.health = Math.floor(this.engine.hero.health);
     gameData.maxHealth = this.engine.hero.maxHealth;
@@ -87,7 +83,6 @@ export class GameScene extends Phaser.Scene {
     if (this.engine.isGameOver && !useGameStore.getState().isGameOver) {
         useGameStore.getState().setGameState({ isGameOver: true });
     }
-
     if (this.engine.isLevelUpPending && !useGameStore.getState().isLevelUpPending) {
         useGameStore.getState().setGameState({ isLevelUpPending: true });
     }
@@ -96,11 +91,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderEngine() {
-    // Render Hero with Depth Sorting
     this.heroHumanoid.setPosition(this.engine.hero.body.position.x, this.engine.hero.body.position.y);
     this.heroHumanoid.setDepth(this.heroHumanoid.y);
 
-    // Render Enemies
     const currentEnemyIds = new Set(this.engine.enemies.map(e => (e as any).id));
     for (const [id, graphics] of this.enemyGraphics.entries()) {
       if (!currentEnemyIds.has(id)) {
@@ -125,7 +118,6 @@ export class GameScene extends Phaser.Scene {
       graphics.setDepth(enemy.position.y);
     });
 
-    // Render Obstacles
     this.engine.obstacles.forEach((obstacle, index) => {
         let graphics = this.obstacleGraphics.get(index);
         if (!graphics) {
@@ -133,7 +125,6 @@ export class GameScene extends Phaser.Scene {
             this.obstacleGraphics.set(index, graphics);
         }
         graphics.clear();
-
         const type = (obstacle as any).obstacleType;
         if (type === ObstacleType.HAZARD) {
             graphics.fillStyle(0xFF9500, 0.5);
@@ -142,7 +133,6 @@ export class GameScene extends Phaser.Scene {
         } else {
             graphics.fillStyle(0x1A1A1B, 1);
         }
-
         const vertices = obstacle.vertices;
         graphics.beginPath();
         graphics.moveTo(vertices[0].x, vertices[0].y);
