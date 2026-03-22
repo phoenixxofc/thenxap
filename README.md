@@ -64,6 +64,17 @@ npm run dev
 
 ---
 
+## Vercel Deployment
+
+Arena Dash is built on the **Next.js** framework. When deploying to Vercel, use the following settings:
+
+1. **Framework Preset:** `Next.js`
+2. **Root Directory:** `apps/web`
+3. **Build Command:** `cd ../.. && npm run build`
+4. **Install Command:** `cd ../.. && npm install`
+
+**Note:** The `cd ../..` is necessary because Vercel needs to run the workspace-aware install and build from the root of the monorepo to correctly link the `@arena-dash/engine` dependency.
+
 ## Troubleshooting
 - **Node Version Error:** If it says you're on v16, you **must** update to v18+ to use Next.js 14.
 - **Missing File Error:** If the web app says it can't find `@arena-dash/engine`, repeat **Step 2**.

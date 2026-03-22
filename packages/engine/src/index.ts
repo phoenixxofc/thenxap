@@ -360,6 +360,10 @@ export class GameEngine {
   }
 
   private updateEnemies() {
+    // Director AI: Increase enemy speed in "Escape" scenarios (Health < 20%)
+    const healthPercent = this.hero.health / this.hero.maxHealth;
+    const speedMultiplier = healthPercent < 0.2 ? 1.5 : 1.0;
+
     this.enemies.forEach(enemy => {
       const type = (enemy as any).enemyType;
       const target = this.hero.body.position;
@@ -368,7 +372,7 @@ export class GameEngine {
         const forceMagnitude = type === EnemyType.SWARMER ? 0.0005 : 0.0003;
         const vector = Matter.Vector.sub(target, enemy.position);
         const direction = Matter.Vector.normalise(vector);
-        const force = Matter.Vector.mult(direction, forceMagnitude * this.omega);
+        const force = Matter.Vector.mult(direction, forceMagnitude * this.omega * speedMultiplier);
         Matter.Body.applyForce(enemy, enemy.position, force);
       }
     });
@@ -451,5 +455,9 @@ export class GameEngine {
 
   public getInputLog(): PlayerInput[] {
     return this.inputLog;
+  }
+
+  public acknowledgeLevelUp() {
+      this.isLevelUpPending = false;
   }
 }

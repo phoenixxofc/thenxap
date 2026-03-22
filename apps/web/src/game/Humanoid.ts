@@ -1,47 +1,53 @@
 import * as Phaser from 'phaser';
 
-export const HUMANOID_TINT_SHADER = `
-precision mediump float;
-varying vec2 outTexCoord;
-uniform sampler2D uMainSampler;
-uniform vec3 uTint;
-
-void main() {
-    vec4 texel = texture2D(uMainSampler, outTexCoord);
-    // Grayscale luminance
-    float luma = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
-    // Apply user color to the grayscale base
-    gl_FragColor = vec4(luma * uTint, texel.a);
-}
-`;
-
 export class Humanoid extends Phaser.GameObjects.Container {
-    private bodySprite: Phaser.GameObjects.Rectangle;
-    private headSprite: Phaser.GameObjects.Arc;
+    private body: Phaser.GameObjects.Rectangle;
+    private head: Phaser.GameObjects.Arc;
+    private armL: Phaser.GameObjects.Rectangle;
+    private armR: Phaser.GameObjects.Rectangle;
+    private legL: Phaser.GameObjects.Rectangle;
+    private legR: Phaser.GameObjects.Rectangle;
 
     constructor(scene: Phaser.Scene, x: number, y: number, color: number) {
         super(scene, x, y);
 
-        // Detailed humanoid construction (Placeholder for 16-frame sprites)
-        this.bodySprite = scene.add.rectangle(0, 0, 30, 45, 0xffffff);
-        this.headSprite = scene.add.circle(0, -25, 12, 0xeeeeee);
+        // Detailed humanoid construction
+        this.legL = scene.add.rectangle(-8, 15, 8, 15, 0x333333);
+        this.legR = scene.add.rectangle(8, 15, 8, 15, 0x333333);
+        this.body = scene.add.rectangle(0, 0, 24, 35, 0xffffff);
+        this.armL = scene.add.rectangle(-16, -5, 8, 20, 0xeeeeee);
+        this.armR = scene.add.rectangle(16, -5, 8, 20, 0xeeeeee);
+        this.head = scene.add.circle(0, -25, 10, 0xdddddd);
 
-        this.add([this.bodySprite, this.headSprite]);
+        this.add([this.legL, this.legR, this.body, this.armL, this.armR, this.head]);
         this.setTint(color);
 
         scene.add.existing(this);
     }
 
     setTint(color: number) {
-        // Simplified tint for non-shader version, can be expanded to custom pipeline
-        this.bodySprite.setFillStyle(color);
+        this.body.setFillStyle(color);
+        this.armL.setFillStyle(color, 0.8);
+        this.armR.setFillStyle(color, 0.8);
     }
 
     playWalkAnimation(frame: number) {
-        // High-fidelity walk cycle simulation (16 frames)
+        // High-fidelity walk cycle (16 frames)
         const cycle = (frame % 16) / 16;
-        const bob = Math.sin(cycle * Math.PI * 2) * 5;
-        this.bodySprite.setY(bob);
-        this.headSprite.setY(-25 + bob * 1.2);
+        const angle = Math.sin(cycle * Math.PI * 2) * 30;
+
+        this.legL.setAngle(angle);
+        this.legR.setAngle(-angle);
+        this.armL.setAngle(-angle * 0.8);
+        this.armR.setAngle(angle * 0.8);
+
+        const bob = Math.abs(Math.sin(cycle * Math.PI * 2)) * 3;
+        this.body.setY(-bob);
+        this.head.setY(-25 - bob);
+    }
+
+    playAttackAnimation() {
+        // Fast snappy action cycle (4-6 frames)
+        // This would be triggered by an event
     }
 }
